@@ -8,7 +8,9 @@ const config = {
     height: window.innerHeight,
     scale: {
         mode: Phaser.Scale.RESIZE,
-        autoCenter: Phaser.Scale.CENTER_BOTH
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+        width: '100%',
+        height: '100%'
     },
     physics: {
         default: 'arcade',
