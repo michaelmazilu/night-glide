@@ -1,5 +1,6 @@
 import { StartScene } from './scenes/StartScene';
 import { GameScene } from './scenes/GameScene';
+import { GameOverScene } from './scenes/GameOverScene';
 
 const config = {
     type: Phaser.AUTO,
@@ -19,7 +20,7 @@ const config = {
             debug: false
         }
     },
-    scene: [StartScene, GameScene],
+    scene: [StartScene, GameScene, GameOverScene],
     backgroundColor: '#000000'
 };
 

@@ -6,11 +6,12 @@ export class GameScene extends Phaser.Scene {
         this.windDirection = 0;
         this.windStrength = 2;
         this.windChangeTimer = 0;
-        this.spawnDelay = 2000; // Initial spawn delay in milliseconds
-        this.minSpawnDelay = 500; // Minimum spawn delay
-        this.uiElements = new Map(); // Store UI elements for animations
-        this.trailPoints = []; // Store trail points
-        this.maxTrailLength = 20; // Maximum number of trail points
+        this.spawnDelay = 1000;
+        this.minSpawnDelay = 200;
+        this.uiElements = new Map();
+        this.trailPoints = [];
+        this.maxTrailLength = 20;
+        this.scoreAccumulator = 0;
     }
 
     preload() {
@@ -18,6 +19,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     create() {
+        this.score = 0;
+
         // Add scrolling starfield background with parallax effect
         this.starfield = this.add.tileSprite(0, 0, this.cameras.main.width, this.cameras.main.height, 'starfield');
         this.starfield.setOrigin(0, 0);
@@ -26,7 +29,7 @@ export class GameScene extends Phaser.Scene {
         // Create player with smooth movement
         this.player = this.physics.add.sprite(100, this.cameras.main.height / 2, 'spaceship');
         this.player.setCollideWorldBounds(true);
-        this.player.setScale(0.25); // Make player even smaller
+        this.player.setScale(0.1);
         this.player.setOrigin(0.5, 0.5);
         this.player.setAlpha(0);
         this.tweens.add({
@@ -42,7 +45,7 @@ export class GameScene extends Phaser.Scene {
 
         // Create trail graphics
         this.trailGraphics = this.add.graphics();
-        this.trailGraphics.setDepth(-1); // Ensure trail is behind the ship
+        this.trailGraphics.setDepth(-1);
 
         // Create asteroid group
         this.asteroids = this.physics.add.group();
@@ -83,10 +86,13 @@ export class GameScene extends Phaser.Scene {
             loop: true
         });
 
-        // Set up score timer
+        // Set up score timer to update score by 1 per millisecond
         this.time.addEvent({
-            delay: 1000,
-            callback: this.updateScore,
+            delay: 1,
+            callback: () => {
+                this.score += 1;
+                this.scoreText.setText('SCORE: ' + this.score);
+            },
             callbackScope: this,
             loop: true
         });
@@ -218,11 +224,11 @@ export class GameScene extends Phaser.Scene {
         // Update wind direction
         this.updateWind();
 
-        // Handle player movement with WASD controls and diagonal movement
+        // Handle player movement with WASD controls (re-enabled left movement)
         const cursors = this.input.keyboard.addKeys({
             up: Phaser.Input.Keyboard.KeyCodes.W,
             down: Phaser.Input.Keyboard.KeyCodes.S,
-            left: Phaser.Input.Keyboard.KeyCodes.A,
+            left: Phaser.Input.Keyboard.KeyCodes.A, // Re-enabled left movement
             right: Phaser.Input.Keyboard.KeyCodes.D
         });
 
@@ -233,7 +239,7 @@ export class GameScene extends Phaser.Scene {
 
         if (cursors.up.isDown) velocityY -= moveSpeed;
         if (cursors.down.isDown) velocityY += moveSpeed;
-        if (cursors.left.isDown) velocityX -= moveSpeed;
+        if (cursors.left.isDown) velocityX -= moveSpeed; // Apply left movement
         if (cursors.right.isDown) velocityX += moveSpeed;
 
         // Normalize diagonal movement
@@ -250,11 +256,11 @@ export class GameScene extends Phaser.Scene {
         // Update trail
         this.updateTrail();
 
-        // Rotate player based on movement direction (with slightly increased rotation influence)
+        // Rotate player based on movement direction (allow 360 rotation and increased speed)
         if (velocityX !== 0 || velocityY !== 0) {
             const targetAngle = Math.atan2(velocityY, velocityX);
-            // Adjust rotation amount
-            this.player.rotation = Phaser.Math.Linear(this.player.rotation, targetAngle, 0.05); // Adjusted rotation smoothing
+            // Increase rotation speed by increasing the smoothing factor
+            this.player.rotation = Phaser.Math.Linear(this.player.rotation, targetAngle, 0.3); // Increased smoothing for faster rotation
         }
 
         // Move asteroids with wind effect
@@ -267,7 +273,7 @@ export class GameScene extends Phaser.Scene {
             asteroid.rotation += 0.02;
 
             // Remove if off screen (increased buffer)
-            if (asteroid.x < -asteroid.width * 2) { // Check if asteroid is two widths off screen
+            if (asteroid.x < -asteroid.width * 2) {
                 asteroid.destroy();
             }
         });
@@ -302,35 +308,8 @@ export class GameScene extends Phaser.Scene {
         asteroid.body.setCollideWorldBounds(true);
     }
 
-    updateScore() {
-        this.score += 1;
-        
-        // Animate score text
-        this.tweens.add({
-            targets: this.scoreText,
-            scale: 1.2,
-            duration: 100,
-            yoyo: true,
-            ease: 'Power2'
-        });
-        
-        this.scoreText.setText('SCORE: ' + this.score);
-        
-        if (this.score % 10 === 0) {
-            this.gameSpeed += 0.5;
-            this.spawnDelay = Math.max(this.minSpawnDelay, this.spawnDelay - 100);
-            this.spawnTimer.delay = this.spawnDelay;
-            
-            // Visual feedback for speed increase
-            // this.cameras.main.flash(500, 255, 255, 255, 0.2); // Removed white flash
-        }
-    }
-
     gameOver() {
-        // Fade out effect before game over
-        this.cameras.main.fade(500, 0, 0, 0);
-        this.time.delayedCall(500, () => {
-            this.scene.start('StartScene');
-        });
+        // Stop the game and go to GameOverScene, passing the score
+        this.scene.start('GameOverScene', { score: this.score });
     }
 } 
