@@ -2,8 +2,16 @@ export class GameScene extends Phaser.Scene {
     constructor() {
         super({ key: 'GameScene' });
         this.score = 0;
-        this.eko = 0;
-        this.gameSpeed = 15;
+        this.currentRunEko = 0;  // Eko earned in current run
+        this.totalEko = 0;       // Total Eko across all runs
+        this.initialGameSpeed = 2; // Start with a much lower speed
+        this.initialTargetSpeed = 8; // Lower target speed after 10 seconds
+        this.maxGameSpeed = 25; // Keep the same max speed
+        this.gameSpeed = this.initialGameSpeed; // Current game speed
+        this.accelerationDuration1 = 10000; // Duration of the first acceleration phase (10 seconds)
+        this.speedAcceleration2 = 0.02; // Slower acceleration rate after the first phase
+        this.maxSpeedTime = 180000; // Time to reach max speed (3 minutes)
+        this.accelerationTimer = 0; // Timer for tracking acceleration duration
         this.windDirection = 0;
         this.windStrength = 3;
         this.windChangeTimer = 0;
@@ -22,8 +30,31 @@ export class GameScene extends Phaser.Scene {
         this.timeStopActive = false;
         this.timeStopAvailable = true;
         this.timeStopEffect = null;
-        this.normalGameSpeed = 10;
-        this.slowGameSpeed = 6; // 40% slower
+        this.normalGameSpeed = 10; // This might need adjustment based on the new speed curve
+        this.slowGameSpeed = 6; // 40% slower relative to what?
+
+        // Load upgrades
+        this.loadUpgrades();
+    }
+
+    loadUpgrades() {
+        // Load saved upgrades from localStorage
+        const savedUpgrades = localStorage.getItem('shipUpgrades');
+        if (savedUpgrades) {
+            this.upgrades = JSON.parse(savedUpgrades);
+        } else {
+            this.upgrades = {
+                speed: { level: 0 },
+                control: { level: 0 },
+                armor: { level: 0 }
+            };
+        }
+
+        // Load saved total Eko
+        const savedEko = localStorage.getItem('eko');
+        if (savedEko) {
+            this.totalEko = parseInt(savedEko);
+        }
     }
 
     preload() {
@@ -32,7 +63,23 @@ export class GameScene extends Phaser.Scene {
 
     create() {
         this.score = 0;
-        this.eko = 0;
+        this.currentRunEko = 0;  // Reset current run Eko
+        this.gameSpeed = this.initialGameSpeed; // Reset speed on create
+        this.accelerationTimer = 0; // Reset acceleration timer
+
+        // Apply speed upgrade
+        const speedMultiplier = 1 + (this.upgrades.speed.level * 0.2); // 20% increase per level
+        this.initialGameSpeed *= speedMultiplier;
+        this.initialTargetSpeed *= speedMultiplier;
+        this.maxGameSpeed *= speedMultiplier;
+        this.gameSpeed = this.initialGameSpeed;
+
+        // Apply control upgrade
+        const controlMultiplier = 1 + (this.upgrades.control.level * 0.15); // 15% increase per level
+        this.verticalSpeed = 350 * controlMultiplier;
+
+        // Apply armor upgrade
+        this.hitPoints = 1 + this.upgrades.armor.level; // +1 hit point per level
 
         // Add scrolling starfield background
         this.starfield = this.add.tileSprite(0, 0, this.cameras.main.width, this.cameras.main.height, 'starfield');
@@ -72,13 +119,13 @@ export class GameScene extends Phaser.Scene {
 
         // Create score panel with rounded corners (responsive)
         this.scorePanel = this.add.graphics();
+        this.uiContainer.add(this.scorePanel);
         const panelWidth = this.cameras.main.width * 0.15; // Responsive width
         const panelHeight = this.cameras.main.height * 0.06; // Responsive height
-        const panelX = this.cameras.main.width * 0.1 + panelWidth / 2; // Responsive X position
+        const panelX = this.cameras.main.width * 0.05 + panelWidth / 2; // Responsive X position, increased left padding
         const panelY = this.cameras.main.height * 0.05 + panelHeight / 2; // Responsive Y position
         const cornerRadius = panelHeight * 0.2; // Responsive corner radius
         this.drawRoundedPanel(this.scorePanel, panelX, panelY, panelWidth, panelHeight, cornerRadius);
-        this.uiContainer.add(this.scorePanel);
 
         // Create score text (responsive)
         this.scoreText = this.add.text(panelX, panelY, 'Score: 0', { // Position relative to panel
@@ -91,7 +138,7 @@ export class GameScene extends Phaser.Scene {
         this.uiContainer.add(this.scoreText);
 
         // Create Eko text (responsive)
-        this.ekoText = this.add.text(this.cameras.main.width * 0.9 - panelWidth/2, panelY, 'Eko: 0', { // Responsive X position, relative Y to panel
+        this.ekoText = this.add.text(this.cameras.main.width * 0.95 - panelWidth/2, panelY, 'Eko: 0', { // Responsive X position, relative Y to panel, increased right padding
             fontFamily: 'Major Mono Display',
             fontSize: `${Math.max(16, this.cameras.main.height * 0.03)}px`, // Responsive font size
             color: '#ff0000',
@@ -102,12 +149,12 @@ export class GameScene extends Phaser.Scene {
 
         // Create time stop cooldown indicator (responsive)
         const indicatorSize = this.cameras.main.height * 0.04; // Responsive size
-        this.timeStopIndicator = this.add.circle(this.cameras.main.width * 0.95, panelY, indicatorSize / 2, 0x000000, 0.7); // Responsive position
+        this.timeStopIndicator = this.add.circle(this.cameras.main.width * 0.95 - indicatorSize/2 - 10, panelY, indicatorSize / 2, 0x000000, 0.7); // Responsive position, next to Eko
         this.timeStopIndicator.setStrokeStyle(2, 0xffffff, 0.5);
         this.uiContainer.add(this.timeStopIndicator);
 
         // Create time stop icon (responsive)
-        this.timeStopIcon = this.add.text(this.cameras.main.width * 0.95, panelY, '⏱', { // Responsive position
+        this.timeStopIcon = this.add.text(this.timeStopIndicator.x, panelY, '⏱', { // Position relative to indicator
             fontFamily: 'Poppins',
             fontSize: `${Math.max(16, this.cameras.main.height * 0.03)}px`, // Responsive font size
             color: '#ffffff'
@@ -155,8 +202,8 @@ export class GameScene extends Phaser.Scene {
 
     drawRoundedPanel(graphic, x, y, width, height, radius) {
         graphic.clear();
-        graphic.fillStyle(0x000000, 0.5);
-        graphic.lineStyle(2, 0xffffff, 0.5);
+        graphic.fillStyle(0x2a2a2a, 0.9); // Slightly lighter fill, more opaque
+        graphic.lineStyle(2, 0xeeeeee, 0.8); // Lighter, more opaque stroke
         const rectX = x - width / 2;
         const rectY = y - height / 2;
         graphic.fillRoundedRect(rectX, rectY, width, height, radius);
@@ -171,7 +218,7 @@ export class GameScene extends Phaser.Scene {
         // Reposition UI elements (responsive)
         const panelWidth = gameSize.width * 0.15;
         const panelHeight = gameSize.height * 0.06;
-        const panelX = gameSize.width * 0.1 + panelWidth / 2;
+        const panelX = gameSize.width * 0.05 + panelWidth / 2; // Increased left padding
         const panelY = gameSize.height * 0.05 + panelHeight / 2;
         const cornerRadius = panelHeight * 0.2;
         const indicatorSize = gameSize.height * 0.04;
@@ -182,19 +229,36 @@ export class GameScene extends Phaser.Scene {
         this.scoreText.setFontSize(Math.max(16, gameSize.height * 0.03));
 
         // Reposition Eko text
-        this.ekoText.setPosition(gameSize.width * 0.9 - panelWidth/2, panelY);
+        this.ekoText.setPosition(gameSize.width * 0.95 - panelWidth/2, panelY); // Increased right padding
         this.ekoText.setFontSize(Math.max(16, gameSize.height * 0.03));
 
         // Reposition time stop indicator and icon
-        this.timeStopIndicator.setPosition(gameSize.width * 0.95, panelY);
+        this.timeStopIndicator.setPosition(gameSize.width * 0.95 - indicatorSize/2 - 10, panelY); // Next to Eko
         this.timeStopIndicator.setRadius(indicatorSize / 2);
-        this.timeStopIcon.setPosition(gameSize.width * 0.95, panelY);
+        this.timeStopIcon.setPosition(this.timeStopIndicator.x, panelY); // Relative to indicator
         this.timeStopIcon.setFontSize(Math.max(16, gameSize.height * 0.03));
     }
 
     update() {
         // Scroll the starfield background
         this.starfield.tilePositionX += this.gameSpeed;
+
+        // Update acceleration timer
+        this.accelerationTimer += this.game.loop.delta;
+
+        // Gradually increase game speed based on timer
+        if (this.accelerationTimer < this.accelerationDuration1) {
+            // Phase 1: Accelerate to initialTargetSpeed over accelerationDuration1 (10 seconds)
+            const progress = this.accelerationTimer / this.accelerationDuration1;
+            this.gameSpeed = Phaser.Math.Linear(this.initialGameSpeed, this.initialTargetSpeed, progress);
+        } else if (this.accelerationTimer < this.maxSpeedTime) {
+            // Phase 2: Slowly accelerate towards maxGameSpeed over 3 minutes
+            const progress = (this.accelerationTimer - this.accelerationDuration1) / (this.maxSpeedTime - this.accelerationDuration1);
+            this.gameSpeed = Phaser.Math.Linear(this.initialTargetSpeed, this.maxGameSpeed, progress);
+        } else {
+            // Phase 3: Maintain max speed
+            this.gameSpeed = this.maxGameSpeed;
+        }
 
         // Update wind direction
         this.updateWind();
@@ -219,10 +283,9 @@ export class GameScene extends Phaser.Scene {
 
         // Calculate vertical movement
         let velocityY = 0;
-        const verticalSpeed = 350;
 
-        if (cursors.up.isDown) velocityY -= verticalSpeed;
-        else if (cursors.down.isDown) velocityY += verticalSpeed;
+        if (cursors.up.isDown) velocityY -= this.verticalSpeed;
+        else if (cursors.down.isDown) velocityY += this.verticalSpeed;
 
         // Apply movement
         this.player.setVelocityX(0);
@@ -245,7 +308,7 @@ export class GameScene extends Phaser.Scene {
             const windX = Math.cos(this.windDirection) * this.windStrength;
             const windY = Math.sin(this.windDirection) * this.windStrength;
 
-            asteroid.x -= this.gameSpeed;
+            asteroid.x -= this.gameSpeed; // Use accelerating gameSpeed
             // Only apply vertical movement and rotation if time stop is not active
             if (!this.timeStopActive) {
                 asteroid.y += windY;
@@ -266,7 +329,7 @@ export class GameScene extends Phaser.Scene {
 
         // Move coins
         this.coins.getChildren().forEach(coin => {
-            coin.x -= this.gameSpeed;
+            coin.x -= this.gameSpeed; // Use accelerating gameSpeed
 
             if (coin.x < -coin.width * 2) {
                 coin.destroy();
@@ -363,8 +426,8 @@ export class GameScene extends Phaser.Scene {
         if (!coin.active) return;
 
         const value = coin.isSpecial ? 500 : 150;
-        this.eko += value;
-        this.ekoText.setText('Eko: ' + this.eko);
+        this.currentRunEko += value;
+        this.ekoText.setText('Eko: ' + this.currentRunEko);
 
         // Show floating text for collected value
         const text = this.add.text(coin.x, coin.y, '+' + value, {
@@ -486,7 +549,20 @@ export class GameScene extends Phaser.Scene {
     }
 
     gameOver() {
-        // Stop the game and go to GameOverScene, passing the score and eko
-        this.scene.start('GameOverScene', { score: this.score, eko: this.eko });
+        // Add current run Eko to total Eko and save
+        this.totalEko += this.currentRunEko;
+        localStorage.setItem('eko', this.totalEko.toString());
+        
+        // Stop all game systems
+        this.physics.pause();
+        this.player.setTint(0xff0000);
+        this.player.anims.play('turn');
+
+        // Show game over scene
+        this.scene.start('GameOverScene', {
+            score: this.score,
+            eko: this.currentRunEko,
+            totalEko: this.totalEko
+        });
     }
 } 
