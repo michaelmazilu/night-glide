@@ -2,6 +2,7 @@ import { StartScene } from './scenes/StartScene';
 import { GameScene } from './scenes/GameScene';
 import { GameOverScene } from './scenes/GameOverScene';
 import { ArmoryScene } from './scenes/ArmoryScene';
+import { EchoScene } from './scenes/EchoScene';
 
 const config = {
     type: Phaser.AUTO,
@@ -21,7 +22,7 @@ const config = {
             debug: false
         }
     },
-    scene: [StartScene, GameScene, GameOverScene, ArmoryScene],
+    scene: [StartScene, GameScene, GameOverScene, ArmoryScene, EchoScene],
     backgroundColor: '#000000',
     input: {
         mouse: {

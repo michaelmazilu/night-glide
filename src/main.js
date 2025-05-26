@@ -4,9 +4,10 @@ import { StartScene } from './scenes/StartScene';
 import { GameScene } from './scenes/GameScene';
 import { GameOverScene } from './scenes/GameOverScene';
 import { ArmoryScene } from './scenes/ArmoryScene';
+import { EchoScene } from './scenes/EchoScene';
 
-// Add ArmoryScene to the scenes array in config
-config.scene = [StartScene, GameScene, GameOverScene, ArmoryScene];
+// Add all scenes to the scenes array in config
+config.scene = [StartScene, GameScene, GameOverScene, ArmoryScene, EchoScene];
 
 // Create the game instance
 const game = new Phaser.Game(config);

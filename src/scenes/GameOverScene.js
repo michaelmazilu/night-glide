@@ -231,7 +231,7 @@ export class GameOverScene extends Phaser.Scene {
         // Update custom cursor
         this.customCursor.update();
 
-        // Scroll the starfield background
+         // Scroll the starfield background
         this.starfield.tilePositionX += 2;
     }
 } 

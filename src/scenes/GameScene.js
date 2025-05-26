@@ -35,8 +35,23 @@ export class GameScene extends Phaser.Scene {
         this.normalGameSpeed = 10; // This might need adjustment based on the new speed curve
         this.slowGameSpeed = 6; // 40% slower relative to what?
 
-        // Load upgrades
+        // Phase Shift properties
+        this.phaseShiftCooldown = 20000;
+        this.phaseShiftDuration = 3000;
+        this.phaseShiftActive = false;
+        this.phaseShiftAvailable = true;
+        this.phaseShiftEffect = null;
+
+        // Pulse Wave properties
+        this.pulseWaveCooldown = 15000;
+        this.pulseWaveAvailable = true;
+        this.pulseWaveEffect = null;
+        this.pulseWaveRadius = 200;
+        this.pulseWaveForce = 500;
+
+        // Load upgrades and abilities
         this.loadUpgrades();
+        this.loadAbilities();
     }
 
     loadUpgrades() {
@@ -57,6 +72,27 @@ export class GameScene extends Phaser.Scene {
         if (savedEko) {
             this.totalEko = parseInt(savedEko);
         }
+    }
+
+    loadAbilities() {
+        // Load saved abilities from localStorage
+        this.abilities = {
+            timeStop: {
+                owned: localStorage.getItem('timeStop') === 'true',
+                level: parseInt(localStorage.getItem('timeStopLevel')) || 1,
+                equipped: localStorage.getItem('timeStopEquipped') === 'true'
+            },
+            phaseShift: {
+                owned: localStorage.getItem('phaseShift') === 'true',
+                level: parseInt(localStorage.getItem('phaseShiftLevel')) || 1,
+                equipped: localStorage.getItem('phaseShiftEquipped') === 'true'
+            },
+            pulseWave: {
+                owned: localStorage.getItem('pulseWave') === 'true',
+                level: parseInt(localStorage.getItem('pulseWaveLevel')) || 1,
+                equipped: localStorage.getItem('pulseWaveEquipped') === 'true'
+            }
+        };
     }
 
     preload() {
@@ -282,12 +318,24 @@ export class GameScene extends Phaser.Scene {
         const cursors = this.input.keyboard.addKeys({
             up: Phaser.Input.Keyboard.KeyCodes.W,
             down: Phaser.Input.Keyboard.KeyCodes.S,
-            timeStop: Phaser.Input.Keyboard.KeyCodes.T
+            timeStop: Phaser.Input.Keyboard.KeyCodes.SPACE,
+            phaseShift: Phaser.Input.Keyboard.KeyCodes.SPACE,
+            pulseWave: Phaser.Input.Keyboard.KeyCodes.SPACE
         });
 
         // Handle time stop ability
-        if (cursors.timeStop.isDown && this.timeStopAvailable && !this.timeStopActive) {
+        if (cursors.timeStop.isDown && this.timeStopAvailable && !this.timeStopActive && this.abilities.timeStop.owned && this.abilities.timeStop.equipped) {
             this.activateTimeStop();
+        }
+
+        // Handle phase shift ability
+        if (cursors.phaseShift.isDown && this.phaseShiftAvailable && !this.phaseShiftActive && this.abilities.phaseShift.owned && this.abilities.phaseShift.equipped) {
+            this.activatePhaseShift();
+        }
+
+        // Handle pulse wave ability
+        if (cursors.pulseWave.isDown && this.pulseWaveAvailable && this.abilities.pulseWave.owned && this.abilities.pulseWave.equipped) {
+            this.activatePulseWave();
         }
 
         // Calculate vertical movement
@@ -317,11 +365,16 @@ export class GameScene extends Phaser.Scene {
             const windX = Math.cos(this.windDirection) * this.windStrength;
             const windY = Math.sin(this.windDirection) * this.windStrength;
 
-            asteroid.x -= this.gameSpeed; // Use accelerating gameSpeed
+            asteroid.x -= this.gameSpeed;
             // Only apply vertical movement and rotation if time stop is not active
             if (!this.timeStopActive) {
                 asteroid.y += windY;
                 asteroid.rotation += 0.03;
+            }
+
+            // Check for collision with player
+            if (this.physics.overlap(this.player, asteroid) && !this.phaseShiftActive) {
+                this.gameOver();
             }
 
             if (asteroid.x < -asteroid.width * 2) {
@@ -521,11 +574,17 @@ export class GameScene extends Phaser.Scene {
     }
 
     activateTimeStop() {
+        if (!this.abilities.timeStop.owned || !this.abilities.timeStop.equipped) return;
+        
         this.timeStopActive = true;
         this.timeStopAvailable = false;
 
-        // Create time stop effect with red color and smaller size
-        this.timeStopEffect = this.add.circle(this.player.x, this.player.y, 60, 0xff0000, 0.3); // Reduced from 100 to 60
+        // Scale effect based on level
+        const effectSize = 60 * (1 + (this.abilities.timeStop.level - 1) * 0.2); // 20% increase per level
+        const duration = this.timeStopDuration * (1 + (this.abilities.timeStop.level - 1) * 0.1); // 10% increase per level
+
+        // Create time stop effect with red color
+        this.timeStopEffect = this.add.circle(this.player.x, this.player.y, effectSize, 0xff0000, 0.3);
         this.timeStopEffect.setStrokeStyle(2, 0xff0000, 0.5);
         
         // Animate the effect
@@ -533,28 +592,114 @@ export class GameScene extends Phaser.Scene {
             targets: this.timeStopEffect,
             scale: 1.5,
             alpha: 0,
-            duration: 1000,
-            yoyo: true,
-            repeat: 9
-        });
-
-        // Update time stop icon
-        this.timeStopIcon.setColor('#ff0000');
-
-        // End time stop after duration
-        this.time.delayedCall(this.timeStopDuration, () => {
-            this.timeStopActive = false;
-            if (this.timeStopEffect) {
+            duration: duration,
+            onComplete: () => {
+                this.timeStopActive = false;
                 this.timeStopEffect.destroy();
                 this.timeStopEffect = null;
+                
+                // Start cooldown (reduced by level)
+                const cooldown = this.timeStopCooldown * (1 - (this.abilities.timeStop.level - 1) * 0.1); // 10% reduction per level
+                this.time.delayedCall(cooldown, () => {
+                    this.timeStopAvailable = true;
+                });
+            }
+        });
+    }
+
+    activatePhaseShift() {
+        if (!this.abilities.phaseShift.owned || !this.abilities.phaseShift.equipped) return;
+        
+        this.phaseShiftActive = true;
+        this.phaseShiftAvailable = false;
+
+        // Scale effect based on level
+        const effectSize = 60 * (1 + (this.abilities.phaseShift.level - 1) * 0.2); // 20% increase per level
+        const duration = this.phaseShiftDuration * (1 + (this.abilities.phaseShift.level - 1) * 0.1); // 10% increase per level
+
+        // Create phase shift effect with blue color
+        this.phaseShiftEffect = this.add.circle(this.player.x, this.player.y, effectSize, 0x0000ff, 0.3);
+        this.phaseShiftEffect.setStrokeStyle(2, 0x0000ff, 0.5);
+        
+        // Make player semi-transparent
+        this.player.setAlpha(0.5);
+
+        // Animate the effect
+        this.tweens.add({
+            targets: this.phaseShiftEffect,
+            scale: 1.5,
+            alpha: 0,
+            duration: duration,
+            onComplete: () => {
+                this.phaseShiftActive = false;
+                this.phaseShiftEffect.destroy();
+                this.phaseShiftEffect = null;
+                this.player.setAlpha(1);
+                
+                // Start cooldown (reduced by level)
+                const cooldown = this.phaseShiftCooldown * (1 - (this.abilities.phaseShift.level - 1) * 0.1); // 10% reduction per level
+                this.time.delayedCall(cooldown, () => {
+                    this.phaseShiftAvailable = true;
+                });
+            }
+        });
+    }
+
+    activatePulseWave() {
+        if (!this.abilities.pulseWave.owned || !this.abilities.pulseWave.equipped) return;
+        
+        this.pulseWaveAvailable = false;
+
+        // Scale effect based on level
+        const radius = this.pulseWaveRadius * (1 + (this.abilities.pulseWave.level - 1) * 0.2); // 20% increase per level
+        const force = this.pulseWaveForce * (1 + (this.abilities.pulseWave.level - 1) * 0.2); // 20% increase per level
+
+        // Create pulse wave effect
+        this.pulseWaveEffect = this.add.circle(this.player.x, this.player.y, 0, 0x00ff00, 0.3);
+        this.pulseWaveEffect.setStrokeStyle(2, 0x00ff00, 0.5);
+
+        // Animate the pulse wave
+        this.tweens.add({
+            targets: this.pulseWaveEffect,
+            radius: radius,
+            alpha: 0,
+            duration: 500,
+            onComplete: () => {
+                this.pulseWaveEffect.destroy();
+                this.pulseWaveEffect = null;
+                
+                // Start cooldown (reduced by level)
+                const cooldown = this.pulseWaveCooldown * (1 - (this.abilities.pulseWave.level - 1) * 0.1); // 10% reduction per level
+                this.time.delayedCall(cooldown, () => {
+                    this.pulseWaveAvailable = true;
+                });
             }
         });
 
-        // Start cooldown
-        this.time.delayedCall(this.timeStopCooldown, () => {
-            this.timeStopAvailable = true;
-            this.timeStopIcon.setColor('#ffffff');
-        });
+        // Push asteroids and coins away
+        const pushObjects = (objects) => {
+            objects.getChildren().forEach(obj => {
+                const distance = Phaser.Math.Distance.Between(
+                    this.player.x, this.player.y,
+                    obj.x, obj.y
+                );
+
+                if (distance < radius) {
+                    const angle = Phaser.Math.Angle.Between(
+                        this.player.x, this.player.y,
+                        obj.x, obj.y
+                    );
+
+                    const pushForce = force * (1 - distance / radius);
+                    obj.x += Math.cos(angle) * pushForce;
+                    obj.y += Math.sin(angle) * pushForce;
+                }
+            });
+        };
+
+        // Push both asteroids and coins
+        pushObjects(this.asteroids);
+        pushObjects(this.coins);
     }
 
     gameOver() {
