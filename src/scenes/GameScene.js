@@ -1,3 +1,5 @@
+import { CustomCursor } from '../cursor';
+
 export class GameScene extends Phaser.Scene {
     constructor() {
         super({ key: 'GameScene' });
@@ -62,6 +64,10 @@ export class GameScene extends Phaser.Scene {
     }
 
     create() {
+        // Initialize custom cursor and hide it during gameplay
+        this.customCursor = new CustomCursor(this);
+        this.customCursor.hide();
+
         this.score = 0;
         this.currentRunEko = 0;  // Reset current run Eko
         this.gameSpeed = this.initialGameSpeed; // Reset speed on create
@@ -240,6 +246,9 @@ export class GameScene extends Phaser.Scene {
     }
 
     update() {
+        // Update custom cursor
+        this.customCursor.update();
+
         // Scroll the starfield background
         this.starfield.tilePositionX += this.gameSpeed;
 

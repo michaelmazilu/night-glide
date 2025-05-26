@@ -1,3 +1,5 @@
+import { CustomCursor } from '../cursor';
+
 export class StartScene extends Phaser.Scene {
     constructor() {
         super({ key: 'StartScene' });
@@ -15,6 +17,9 @@ export class StartScene extends Phaser.Scene {
     }
 
     create() {
+        // Initialize custom cursor
+        this.customCursor = new CustomCursor(this);
+
         // Add scrolling starfield background
         this.starfield = this.add.tileSprite(0, 0, this.cameras.main.width, this.cameras.main.height, 'starfield');
         this.starfield.setOrigin(0, 0);
@@ -52,64 +57,60 @@ export class StartScene extends Phaser.Scene {
         this.startButtonBg = this.add.graphics();
         this.drawRoundedButton(this.startButtonBg, this.cameras.main.width / 2, buttonY, buttonWidth, buttonHeight, cornerRadius);
         
-        // Create a container for the start button
-        this.startButtonContainer = this.add.container(this.cameras.main.width / 2, buttonY);
-        this.startButtonContainer.setSize(buttonWidth, buttonHeight);
-        this.startButtonContainer.setInteractive(new Phaser.Geom.Rectangle(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight), Phaser.Geom.Rectangle.Contains);
+        // Create start button with proper hitbox
+        this.startButton = this.add.zone(this.cameras.main.width / 2, buttonY, buttonWidth, buttonHeight);
+        this.startButton.setInteractive();
         
-        this.startText = this.add.text(0, 0, 'Start', {
+        this.startText = this.add.text(this.cameras.main.width / 2, buttonY, 'Start', {
             fontFamily: 'Poppins',
             fontSize: this.cameras.main.width * 0.03 > 30 ? '30px' : `${this.cameras.main.width * 0.03}px`,
             color: '#ffffff'
         }).setOrigin(0.5);
-        this.startButtonContainer.add(this.startText);
 
         // Armory button
         this.armoryButtonBg = this.add.graphics();
         this.drawRoundedButton(this.armoryButtonBg, this.cameras.main.width / 2, buttonY + buttonHeight + 20, buttonWidth, buttonHeight, cornerRadius);
         
-        // Create a container for the armory button
-        this.armoryButtonContainer = this.add.container(this.cameras.main.width / 2, buttonY + buttonHeight + 20);
-        this.armoryButtonContainer.setSize(buttonWidth, buttonHeight);
-        this.armoryButtonContainer.setInteractive(new Phaser.Geom.Rectangle(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight), Phaser.Geom.Rectangle.Contains);
+        // Create armory button with proper hitbox
+        this.armoryButton = this.add.zone(this.cameras.main.width / 2, buttonY + buttonHeight + 20, buttonWidth, buttonHeight);
+        this.armoryButton.setInteractive();
         
-        this.armoryText = this.add.text(0, 0, 'Armory', {
+        this.armoryText = this.add.text(this.cameras.main.width / 2, buttonY + buttonHeight + 20, 'Armory', {
             fontFamily: 'Poppins',
             fontSize: this.cameras.main.width * 0.03 > 30 ? '30px' : `${this.cameras.main.width * 0.03}px`,
             color: '#ffffff'
         }).setOrigin(0.5);
-        this.armoryButtonContainer.add(this.armoryText);
 
-        // Add hover effects and click handlers
-        this.startButtonContainer.on('pointerover', () => {
+        // Add hover effects and click handlers for start button
+        this.startButton.on('pointerover', () => {
             this.startButtonBg.clear();
             this.drawRoundedButton(this.startButtonBg, this.cameras.main.width / 2, buttonY, buttonWidth, buttonHeight, cornerRadius, true);
         });
 
-        this.startButtonContainer.on('pointerout', () => {
+        this.startButton.on('pointerout', () => {
             this.startButtonBg.clear();
             this.drawRoundedButton(this.startButtonBg, this.cameras.main.width / 2, buttonY, buttonWidth, buttonHeight, cornerRadius, false);
         });
 
-        this.armoryButtonContainer.on('pointerover', () => {
-            this.armoryButtonBg.clear();
-            this.drawRoundedButton(this.armoryButtonBg, this.cameras.main.width / 2, buttonY + buttonHeight + 20, buttonWidth, buttonHeight, cornerRadius, true);
-        });
-
-        this.armoryButtonContainer.on('pointerout', () => {
-            this.armoryButtonBg.clear();
-            this.drawRoundedButton(this.armoryButtonBg, this.cameras.main.width / 2, buttonY + buttonHeight + 20, buttonWidth, buttonHeight, cornerRadius, false);
-        });
-
-        // Add click handlers
-        this.startButtonContainer.on('pointerdown', () => {
+        this.startButton.on('pointerdown', () => {
             this.cameras.main.fade(500, 0, 0, 0);
             this.time.delayedCall(500, () => {
                 this.scene.start('GameScene');
             });
         });
 
-        this.armoryButtonContainer.on('pointerdown', () => {
+        // Add hover effects and click handlers for armory button
+        this.armoryButton.on('pointerover', () => {
+            this.armoryButtonBg.clear();
+            this.drawRoundedButton(this.armoryButtonBg, this.cameras.main.width / 2, buttonY + buttonHeight + 20, buttonWidth, buttonHeight, cornerRadius, true);
+        });
+
+        this.armoryButton.on('pointerout', () => {
+            this.armoryButtonBg.clear();
+            this.drawRoundedButton(this.armoryButtonBg, this.cameras.main.width / 2, buttonY + buttonHeight + 20, buttonWidth, buttonHeight, cornerRadius, false);
+        });
+
+        this.armoryButton.on('pointerdown', () => {
             this.cameras.main.fade(500, 0, 0, 0);
             this.time.delayedCall(500, () => {
                 this.scene.start('ArmoryScene');
@@ -189,16 +190,16 @@ export class StartScene extends Phaser.Scene {
         const buttonY = gameSize.height * 0.5;
 
         // Update start button
-        this.startButtonContainer.setPosition(centerX, buttonY);
-        this.startButtonContainer.setSize(buttonWidth, buttonHeight);
-        this.startButtonContainer.setInteractive(new Phaser.Geom.Rectangle(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight), Phaser.Geom.Rectangle.Contains);
+        this.startButton.setPosition(centerX, buttonY);
+        this.startButton.setSize(buttonWidth, buttonHeight);
+        this.startText.setPosition(centerX, buttonY);
         this.startText.setFontSize(gameSize.width * 0.03 > 30 ? '30px' : `${gameSize.width * 0.03}px`);
         this.drawRoundedButton(this.startButtonBg, centerX, buttonY, buttonWidth, buttonHeight, cornerRadius);
 
         // Update armory button
-        this.armoryButtonContainer.setPosition(centerX, buttonY + buttonHeight + 20);
-        this.armoryButtonContainer.setSize(buttonWidth, buttonHeight);
-        this.armoryButtonContainer.setInteractive(new Phaser.Geom.Rectangle(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight), Phaser.Geom.Rectangle.Contains);
+        this.armoryButton.setPosition(centerX, buttonY + buttonHeight + 20);
+        this.armoryButton.setSize(buttonWidth, buttonHeight);
+        this.armoryText.setPosition(centerX, buttonY + buttonHeight + 20);
         this.armoryText.setFontSize(gameSize.width * 0.03 > 30 ? '30px' : `${gameSize.width * 0.03}px`);
         this.drawRoundedButton(this.armoryButtonBg, centerX, buttonY + buttonHeight + 20, buttonWidth, buttonHeight, cornerRadius);
 
@@ -213,5 +214,8 @@ export class StartScene extends Phaser.Scene {
     update() {
         // Scroll the starfield background
         this.starfield.tilePositionX += 2;
+
+        // Update custom cursor
+        this.customCursor.update();
     }
 } 
