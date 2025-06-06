@@ -6,8 +6,8 @@ export class GameScene extends Phaser.Scene {
         this.score = 0;
         this.currentRunEko = 0;  // Eko earned in current run
         this.totalEko = 0;       // Total Eko across all runs
-        this.initialGameSpeed = 2; // Start with a much lower speed
-        this.initialTargetSpeed = 8; // Lower target speed after 10 seconds
+        this.initialGameSpeed = 6; // Faster start
+        this.initialTargetSpeed = 12; // Faster acceleration target
         this.maxGameSpeed = 25; // Keep the same max speed
         this.gameSpeed = this.initialGameSpeed; // Current game speed
         this.accelerationDuration1 = 10000; // Duration of the first acceleration phase (10 seconds)
@@ -178,6 +178,7 @@ export class GameScene extends Phaser.Scene {
             strokeThickness: 4
         }).setOrigin(0.5);
         this.uiContainer.add(this.scoreText);
+        this.scoreText.setText('Score: 0'); // Ensure score is reset visually
 
         // Create Eko text (responsive)
         this.ekoText = this.add.text(this.cameras.main.width * 0.95 - panelWidth/2, panelY, 'Eko: 0', { // Responsive X position, relative Y to panel, increased right padding
@@ -240,6 +241,37 @@ export class GameScene extends Phaser.Scene {
         // Handle resize
         this.scale.on('resize', this.resize, this);
         this.resize(this.scale.gameSize); // Initial resize call
+
+        // Add background music with lower volume
+        this.musicEnabled = localStorage.getItem('musicEnabled') === 'true';
+        this.backgroundMusic = this.sound.add('backgroundMusic', {
+            volume: 0.2,
+            loop: true
+        });
+        if (this.musicEnabled) {
+            this.backgroundMusic.play();
+        }
+
+        // Add music toggle button
+        this.musicToggleButton = this.add.text(30, 30, this.musicEnabled ? '🔊' : '🔇', {
+            fontFamily: 'Poppins',
+            fontSize: '32px',
+            color: '#ffffff',
+            backgroundColor: '#222',
+            padding: { left: 10, right: 10, top: 5, bottom: 5 },
+            borderRadius: 8
+        }).setInteractive();
+        this.musicToggleButton.setScrollFactor(0);
+        this.musicToggleButton.on('pointerdown', () => {
+            this.musicEnabled = !this.musicEnabled;
+            localStorage.setItem('musicEnabled', this.musicEnabled);
+            this.musicToggleButton.setText(this.musicEnabled ? '🔊' : '🔇');
+            if (this.musicEnabled) {
+                this.backgroundMusic.play();
+            } else {
+                this.backgroundMusic.stop();
+            }
+        });
     }
 
     drawRoundedPanel(graphic, x, y, width, height, radius) {
@@ -318,24 +350,18 @@ export class GameScene extends Phaser.Scene {
         const cursors = this.input.keyboard.addKeys({
             up: Phaser.Input.Keyboard.KeyCodes.W,
             down: Phaser.Input.Keyboard.KeyCodes.S,
-            timeStop: Phaser.Input.Keyboard.KeyCodes.SPACE,
-            phaseShift: Phaser.Input.Keyboard.KeyCodes.SPACE,
-            pulseWave: Phaser.Input.Keyboard.KeyCodes.SPACE
+            ability: Phaser.Input.Keyboard.KeyCodes.E
         });
 
-        // Handle time stop ability
-        if (cursors.timeStop.isDown && this.timeStopAvailable && !this.timeStopActive && this.abilities.timeStop.owned && this.abilities.timeStop.equipped) {
-            this.activateTimeStop();
-        }
-
-        // Handle phase shift ability
-        if (cursors.phaseShift.isDown && this.phaseShiftAvailable && !this.phaseShiftActive && this.abilities.phaseShift.owned && this.abilities.phaseShift.equipped) {
-            this.activatePhaseShift();
-        }
-
-        // Handle pulse wave ability
-        if (cursors.pulseWave.isDown && this.pulseWaveAvailable && this.abilities.pulseWave.owned && this.abilities.pulseWave.equipped) {
-            this.activatePulseWave();
+        // Activate the currently equipped ability when E is pressed
+        if (cursors.ability.isDown) {
+            if (this.abilities.timeStop.owned && this.abilities.timeStop.equipped && this.timeStopAvailable && !this.timeStopActive) {
+                this.activateTimeStop();
+            } else if (this.abilities.phaseShift.owned && this.abilities.phaseShift.equipped && this.phaseShiftAvailable && !this.phaseShiftActive) {
+                this.activatePhaseShift();
+            } else if (this.abilities.pulseWave.owned && this.abilities.pulseWave.equipped && this.pulseWaveAvailable) {
+                this.activatePulseWave();
+            }
         }
 
         // Calculate vertical movement
@@ -621,8 +647,9 @@ export class GameScene extends Phaser.Scene {
         this.phaseShiftEffect = this.add.circle(this.player.x, this.player.y, effectSize, 0x0000ff, 0.3);
         this.phaseShiftEffect.setStrokeStyle(2, 0x0000ff, 0.5);
         
-        // Make player semi-transparent
+        // Make player semi-transparent and change tint as indicator
         this.player.setAlpha(0.5);
+        this.player.setTint(0x0000ff); // Blue tint for phase shift
 
         // Animate the effect
         this.tweens.add({
@@ -635,6 +662,7 @@ export class GameScene extends Phaser.Scene {
                 this.phaseShiftEffect.destroy();
                 this.phaseShiftEffect = null;
                 this.player.setAlpha(1);
+                this.player.clearTint(); // Remove tint after phase shift
                 
                 // Start cooldown (reduced by level)
                 const cooldown = this.phaseShiftCooldown * (1 - (this.abilities.phaseShift.level - 1) * 0.1); // 10% reduction per level
@@ -684,6 +712,9 @@ export class GameScene extends Phaser.Scene {
                     obj.x, obj.y
                 );
 
+                const radius = this.pulseWaveRadius * (1 + (this.abilities.pulseWave.level - 1) * 0.2);
+                const force = this.pulseWaveForce * (1 + (this.abilities.pulseWave.level - 1) * 0.2);
+
                 if (distance < radius) {
                     const angle = Phaser.Math.Angle.Between(
                         this.player.x, this.player.y,
@@ -697,9 +728,8 @@ export class GameScene extends Phaser.Scene {
             });
         };
 
-        // Push both asteroids and coins
+        // Push only asteroids
         pushObjects(this.asteroids);
-        pushObjects(this.coins);
     }
 
     gameOver() {

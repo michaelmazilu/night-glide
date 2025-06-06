@@ -92,7 +92,7 @@ export class StartScene extends Phaser.Scene {
         this.echoButton = this.add.zone(this.cameras.main.width / 2, echoButtonY, buttonWidth, buttonHeight);
         this.echoButton.setInteractive();
 
-        const echoText = this.add.text(this.cameras.main.width / 2, echoButtonY, 'Echo', {
+        const echoText = this.add.text(this.cameras.main.width / 2, echoButtonY, 'Echo Chamber', {
             fontFamily: 'Poppins',
             fontSize: this.cameras.main.width * 0.03 > 30 ? '30px' : `${this.cameras.main.width * 0.03}px`,
             color: '#ffffff'
@@ -170,12 +170,34 @@ export class StartScene extends Phaser.Scene {
         this.logo.setScale(this.cameras.main.width * 0.0001);
 
         // Add background music with delay and lower volume
+        this.musicEnabled = localStorage.getItem('musicEnabled') === 'true';
         this.backgroundMusic = this.sound.add('backgroundMusic', {
             volume: 0.2,
             loop: true
         });
+        if (this.musicEnabled) {
+            this.backgroundMusic.play();
+        }
 
-        this.backgroundMusic.play();
+        // Add music toggle button
+        this.musicToggleButton = this.add.text(30, 30, this.musicEnabled ? '🔊' : '🔇', {
+            fontFamily: 'Poppins',
+            fontSize: '32px',
+            color: '#ffffff',
+            backgroundColor: '#222',
+            padding: { left: 10, right: 10, top: 5, bottom: 5 },
+            borderRadius: 8
+        }).setInteractive();
+        this.musicToggleButton.on('pointerdown', () => {
+            this.musicEnabled = !this.musicEnabled;
+            localStorage.setItem('musicEnabled', this.musicEnabled);
+            this.musicToggleButton.setText(this.musicEnabled ? '🔊' : '🔇');
+            if (this.musicEnabled) {
+                this.backgroundMusic.play();
+            } else {
+                this.backgroundMusic.stop();
+            }
+        });
 
         // Handle resize
         this.scale.on('resize', this.resize, this);

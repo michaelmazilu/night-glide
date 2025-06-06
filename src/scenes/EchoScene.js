@@ -273,21 +273,25 @@ export class EchoScene extends Phaser.Scene {
 
     loadAbilities() {
         // Load saved abilities and Eko from localStorage
+        const savedPhaseShift = localStorage.getItem('phaseShift');
+        const savedPulseWave = localStorage.getItem('pulseWave');
+        const savedEchoStasis = localStorage.getItem('echoStasis');
+
         this.abilities = {
             phaseShift: {
-                owned: localStorage.getItem('phaseShift') === 'true',
+                owned: savedPhaseShift ? savedPhaseShift === 'true' : false,
                 level: parseInt(localStorage.getItem('phaseShiftLevel')) || 1,
-                equipped: localStorage.getItem('phaseShiftEquipped') === 'true'
+                equipped: savedPhaseShift ? localStorage.getItem('phaseShiftEquipped') === 'true' : false
             },
             pulseWave: {
-                owned: localStorage.getItem('pulseWave') === 'true',
+                owned: savedPulseWave ? savedPulseWave === 'true' : false,
                 level: parseInt(localStorage.getItem('pulseWaveLevel')) || 1,
-                equipped: localStorage.getItem('pulseWaveEquipped') === 'true'
+                equipped: savedPulseWave ? localStorage.getItem('pulseWaveEquipped') === 'true' : false
             },
             echoStasis: {
-                owned: localStorage.getItem('echoStasis') === 'true',
+                owned: savedEchoStasis ? savedEchoStasis === 'true' : true, // Owned by default
                 level: parseInt(localStorage.getItem('echoStasisLevel')) || 1,
-                equipped: localStorage.getItem('echoStasisEquipped') === 'true'
+                equipped: savedEchoStasis ? localStorage.getItem('echoStasisEquipped') === 'true' : true // Equipped by default
             }
         };
         this.eko = parseInt(localStorage.getItem('eko')) || 0;
