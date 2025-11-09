@@ -1,0 +1,268 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Inter", "Space Grotesk", system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: radial-gradient(circle at 25% -20%, #1f1f1f, #060606 55%, #000);
+  color: #f7f7f7;
+  margin: 0;
+  min-height: 100vh;
+}
+
+.nightglide-shell {
+  min-height: 100vh;
+}
+
+.nightglide-stage {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+.nightglide-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.nightglide-hud {
+  position: absolute;
+  top: 2.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  z-index: 2;
+  justify-content: center;
+}
+
+.nightglide-badge {
+  backdrop-filter: blur(16px);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 0.65rem 1.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #f3f3f3;
+  min-width: 154px;
+  text-align: center;
+}
+
+.nightglide-badge p {
+  margin: 0;
+  opacity: 0.7;
+}
+
+.nightglide-badge span {
+  font-size: 0.85rem;
+  margin-top: 0.35rem;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.nightglide-badge small {
+  margin-top: 0.15rem;
+  font-size: 0.7rem;
+  opacity: 0.6;
+  letter-spacing: 0.1em;
+  display: block;
+}
+
+.nightglide-badge.subtle {
+  opacity: 0.7;
+}
+
+.nightglide-badge.boost-shield {
+  border-color: rgba(111, 208, 255, 0.45);
+  background: rgba(111, 208, 255, 0.08);
+}
+
+.nightglide-badge.boost-shrink {
+  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.nightglide-badge.boost-surge {
+  border-color: rgba(255, 227, 125, 0.45);
+  background: rgba(255, 227, 125, 0.08);
+}
+
+.nightglide-tip {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.75rem 1.5rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(250, 250, 250, 0.75);
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
+  z-index: 2;
+}
+
+.nightglide-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(
+      circle at top,
+      rgba(255, 255, 255, 0.04),
+      rgba(0, 0, 0, 0.92)
+    ),
+    rgba(0, 0, 0, 0.78);
+  z-index: 3;
+  padding: 2rem;
+}
+
+.nightglide-card {
+  width: min(480px, 90vw);
+  padding: 2.75rem 2.5rem;
+  border-radius: 32px;
+  background: rgba(10, 10, 10, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 40px 70px rgba(0, 0, 0, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.nightglide-card h1 {
+  margin: 0.25rem 0 0.75rem;
+  font-size: clamp(2.5rem, 4vw, 3.5rem);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.nightglide-card p {
+  margin: 0;
+  color: rgba(245, 245, 245, 0.76);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.nightglide-card span {
+  color: #f0f0f0;
+  font-weight: 600;
+}
+
+.nightglide-card button {
+  border: none;
+  border-radius: 999px;
+  padding: 0.95rem 2.75rem;
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: linear-gradient(120deg, #fdfdfd, #cacaca);
+  color: #050505;
+  cursor: pointer;
+  transition: transform 200ms ease, box-shadow 200ms ease;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.35);
+}
+
+.nightglide-card button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 22px 45px rgba(0, 0, 0, 0.45);
+}
+
+.nightglide-label {
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.nightglide-boost-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  text-align: left;
+}
+
+.nightglide-boost-chip {
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem 1rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.nightglide-boost-chip strong {
+  font-size: 0.85rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.nightglide-boost-chip span {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.65);
+  margin-top: 0.15rem;
+}
+
+@media (max-width: 640px) {
+  .nightglide-hud {
+    flex-direction: column;
+    align-items: center;
+    top: 1.5rem;
+  }
+
+  .nightglide-badge {
+    padding: 0.5rem 1.25rem;
+  }
+
+  .nightglide-tip {
+    bottom: 1rem;
+    width: calc(100% - 2rem);
+    text-align: center;
+  }
+
+  .nightglide-card {
+    padding: 2rem 1.5rem;
+  }
+
+  .nightglide-boost-row {
+    gap: 0.75rem;
+  }
+}
