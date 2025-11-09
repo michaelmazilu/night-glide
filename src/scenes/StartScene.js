@@ -3,11 +3,11 @@ import { CustomCursor } from '../cursor';
 export class StartScene extends Phaser.Scene {
     constructor() {
         super({ key: 'StartScene' });
+        this.menuButtons = [];
+        this.transitioning = false;
     }
 
     preload() {
-        // Load assets
-        this.load.image('starfield', 'assets/starfield.png');
         this.load.image('spaceship', 'assets/spaceship.png');
         this.load.image('asteroid', 'assets/asteroid.png');
         this.load.audio('backgroundMusic', 'assets/backjazz.mp3');
@@ -17,181 +17,83 @@ export class StartScene extends Phaser.Scene {
     }
 
     create() {
-        // Initialize custom cursor
         this.customCursor = new CustomCursor(this);
+        this.menuButtons = [];
+        this.transitioning = false;
 
-        // Add scrolling starfield background
-        this.starfield = this.add.tileSprite(0, 0, this.cameras.main.width, this.cameras.main.height, 'starfield');
-        this.starfield.setOrigin(0, 0);
-        this.starfield.setScale(Math.max(this.cameras.main.width / this.starfield.width, this.cameras.main.height / this.starfield.height));
+        this.colors = {
+            background: 0x05070b,
+            accentHex: 0xf7f8ff,
+            accent: '#f7f8ff',
+            cyanGlow: 'rgba(64, 225, 255, 0.75)',
+            subtitle: 'rgba(247, 248, 255, 0.7)'
+        };
 
-        // Add a subtle dark overlay
-        this.add.rectangle(0, 0, this.cameras.main.width, this.cameras.main.height, 0x000000, 0.6).setOrigin(0);
+        const { width, height } = this.cameras.main;
 
-        // Add title with Major Mono Display
-        this.title = this.add.text(this.cameras.main.width / 2, this.cameras.main.height * 0.2, 'NiGht Glide', {
-            fontFamily: 'Major Mono Display',
-            fontSize: this.cameras.main.width * 0.06 > 80 ? '80px' : `${this.cameras.main.width * 0.06}px`,
-            color: '#ffffff',
-            stroke: '#000000',
-            strokeThickness: 6,
-            shadow: { offsetX: 5, offsetY: 5, color: '#000000', blur: 10, fill: true, stroke: true }
-        }).setOrigin(0.5);
+        this.backgroundRect = this.add.rectangle(0, 0, width, height, this.colors.background, 1).setOrigin(0);
+        this.backgroundRect.setDepth(-3);
 
-        // Add subtitle with Poppins
-        this.subtitle = this.add.text(this.cameras.main.width / 2, this.cameras.main.height * 0.3, 'Navigate through the stars', {
-            fontFamily: 'Poppins',
-            fontSize: this.cameras.main.width * 0.02 > 24 ? '24px' : `${this.cameras.main.width * 0.02}px`,
-            color: '#ffffff',
-            stroke: '#000000',
-            strokeThickness: 2
-        }).setOrigin(0.5);
-
-        // Define button dimensions and spacing
-        const buttonWidth = this.cameras.main.width * 0.125; // Half the previous width
-        const buttonHeight = this.cameras.main.height * 0.05; // Half the previous height
-        const verticalSpacing = this.cameras.main.height * 0.03;
-        const cornerRadius = buttonHeight * 0.3;
-        const startButtonY = this.cameras.main.height * 0.5;
-        
-        // Start button
-        this.startButtonBg = this.add.graphics();
-        this.drawRoundedButton(this.startButtonBg, this.cameras.main.width / 2, startButtonY, buttonWidth, buttonHeight, cornerRadius);
-
-        // Create start button with proper hitbox
-        this.startButton = this.add.zone(this.cameras.main.width / 2, startButtonY, buttonWidth, buttonHeight);
-        this.startButton.setInteractive();
-
-        this.startText = this.add.text(this.cameras.main.width / 2, startButtonY, 'Start', {
-            fontFamily: 'Poppins',
-            fontSize: this.cameras.main.width * 0.03 > 30 ? '30px' : `${this.cameras.main.width * 0.03}px`,
-            color: '#ffffff'
-        }).setOrigin(0.5);
-
-        // Armory button
-        const armoryButtonY = startButtonY + buttonHeight + verticalSpacing;
-        this.armoryButtonBg = this.add.graphics();
-        this.drawRoundedButton(this.armoryButtonBg, this.cameras.main.width / 2, armoryButtonY, buttonWidth, buttonHeight, cornerRadius);
-
-        // Create armory button zone
-        this.armoryButton = this.add.zone(this.cameras.main.width / 2, armoryButtonY, buttonWidth, buttonHeight);
-        this.armoryButton.setInteractive();
-
-        const armoryText = this.add.text(this.cameras.main.width / 2, armoryButtonY, 'Armory', {
-            fontFamily: 'Poppins',
-            fontSize: this.cameras.main.width * 0.03 > 30 ? '30px' : `${this.cameras.main.width * 0.03}px`,
-            color: '#ffffff'
-        }).setOrigin(0.5);
-
-        // Echo button
-        const echoButtonY = armoryButtonY + buttonHeight + verticalSpacing;
-        this.echoButtonBg = this.add.graphics();
-        this.drawRoundedButton(this.echoButtonBg, this.cameras.main.width / 2, echoButtonY, buttonWidth, buttonHeight, cornerRadius);
-
-        // Create echo button zone
-        this.echoButton = this.add.zone(this.cameras.main.width / 2, echoButtonY, buttonWidth, buttonHeight);
-        this.echoButton.setInteractive();
-
-        const echoText = this.add.text(this.cameras.main.width / 2, echoButtonY, 'Echo Chamber', {
-            fontFamily: 'Poppins',
-            fontSize: this.cameras.main.width * 0.03 > 30 ? '30px' : `${this.cameras.main.width * 0.03}px`,
-            color: '#ffffff'
-        }).setOrigin(0.5);
-
-        // Add hover effects and click handlers for start button
-        this.startButton.on('pointerover', () => {
-            this.startButtonBg.clear();
-            this.drawRoundedButton(this.startButtonBg, this.cameras.main.width / 2, startButtonY, buttonWidth, buttonHeight, cornerRadius, true);
+        this.noiseTexture = this.add.renderTexture(0, 0, width, height).setOrigin(0);
+        this.noiseTexture.setAlpha(0.12);
+        this.noiseTexture.setDepth(-2);
+        this.refreshNoise(width, height);
+        this.noiseRefreshEvent = this.time.addEvent({
+            delay: 2200,
+            loop: true,
+            callback: () => this.refreshNoise(this.cameras.main.width, this.cameras.main.height)
         });
 
-        this.startButton.on('pointerout', () => {
-            this.startButtonBg.clear();
-            this.drawRoundedButton(this.startButtonBg, this.cameras.main.width / 2, startButtonY, buttonWidth, buttonHeight, cornerRadius, false);
-        });
+        this.horizon = this.add.rectangle(width / 2, height * 0.44, width * 0.6, 1.2, this.colors.accentHex, 0.2).setOrigin(0.5);
+        this.horizon.setDepth(-1);
 
-        this.startButton.on('pointerdown', () => {
-            this.cameras.main.fade(500, 0, 0, 0);
-            this.time.delayedCall(500, () => {
-                this.scene.start('GameScene');
-            });
-        });
-
-        // Add hover effects and click handlers for armory button
-        this.armoryButton.on('pointerover', () => {
-            this.armoryButtonBg.clear();
-            this.drawRoundedButton(this.armoryButtonBg, this.cameras.main.width / 2, armoryButtonY, buttonWidth, buttonHeight, cornerRadius, true);
-        });
-
-        this.armoryButton.on('pointerout', () => {
-            this.armoryButtonBg.clear();
-            this.drawRoundedButton(this.armoryButtonBg, this.cameras.main.width / 2, armoryButtonY, buttonWidth, buttonHeight, cornerRadius, false);
-        });
-
-        this.armoryButton.on('pointerdown', () => {
-            this.cameras.main.fade(500, 0, 0, 0);
-            this.time.delayedCall(500, () => {
-                this.scene.start('ArmoryScene');
-            });
-        });
-
-        // Add hover effects and click handlers for echo button
-        this.echoButton.on('pointerover', () => {
-            this.echoButtonBg.clear();
-            this.drawRoundedButton(this.echoButtonBg, this.cameras.main.width / 2, echoButtonY, buttonWidth, buttonHeight, cornerRadius, true);
-        });
-
-        this.echoButton.on('pointerout', () => {
-            this.echoButtonBg.clear();
-            this.drawRoundedButton(this.echoButtonBg, this.cameras.main.width / 2, echoButtonY, buttonWidth, buttonHeight, cornerRadius, false);
-        });
-
-        this.echoButton.on('pointerdown', () => {
-            this.cameras.main.fade(500, 0, 0, 0);
-            this.time.delayedCall(500, () => {
-                this.scene.start('EchoScene');
-            });
-        });
-
-        // Add instructions with Poppins font
-        this.instructions = this.add.text(this.cameras.main.width / 2, this.cameras.main.height * 0.75, 
-            'WS to move T to use Echo \nAvoid obstacles and survive as long as possible!', {
-            fontFamily: 'Poppins',
-            fontSize: this.cameras.main.width * 0.015 > 18 ? '18px' : `${this.cameras.main.width * 0.015}px`,
-            color: '#ffffff',
-            stroke: '#000000',
-            strokeThickness: 2,
+        this.title = this.add.text(width / 2, height * 0.22, 'NIGHT GLIDE', {
+            fontFamily: 'Space Grotesk',
+            fontSize: `${Math.min(width * 0.075, 96)}px`,
+            fontStyle: '600',
+            color: this.colors.accent,
             align: 'center'
-        });
-        this.instructions.setOrigin(0.5);
+        }).setOrigin(0.5);
+        this.title.setShadow(0, 0, this.colors.cyanGlow, 24, false, true);
 
-        // Add logo to the top right
-        this.logo = this.add.image(this.cameras.main.width - 20, 20, 'logo');
-        this.logo.setOrigin(1, 0);
-        this.logo.setScale(this.cameras.main.width * 0.0001);
+        this.subtitle = this.add.text(width / 2, height * 0.3, 'ORBITAL DRIFT PROTOCOL', {
+            fontFamily: 'Space Grotesk',
+            fontSize: `${Math.min(width * 0.02, 26)}px`,
+            fontStyle: '300',
+            color: this.colors.subtitle,
+            align: 'center'
+        }).setOrigin(0.5);
 
-        // Add background music with delay and lower volume
+        const menuConfig = [
+            { label: 'ENTER SIMULATION', yRatio: 0.55, target: 'GameScene' },
+            { label: 'ARMORY', yRatio: 0.65, target: 'ArmoryScene' },
+            { label: 'ECHO CHAMBER', yRatio: 0.75, target: 'EchoScene' }
+        ];
+
+        menuConfig.forEach(config => this.createMenuButton(config));
+
         this.musicEnabled = localStorage.getItem('musicEnabled') === 'true';
         this.backgroundMusic = this.sound.add('backgroundMusic', {
             volume: 0.2,
             loop: true
         });
+
         if (this.musicEnabled) {
             this.backgroundMusic.play();
         }
 
-        // Add music toggle button
-        this.musicToggleButton = this.add.text(30, 30, this.musicEnabled ? '🔊' : '🔇', {
-            fontFamily: 'Poppins',
-            fontSize: '32px',
-            color: '#ffffff',
-            backgroundColor: '#222',
-            padding: { left: 10, right: 10, top: 5, bottom: 5 },
-            borderRadius: 8
-        }).setInteractive();
+        this.musicToggleButton = this.add.text(40, height - 40, this.musicEnabled ? 'SOUND: ON' : 'SOUND: OFF', {
+            fontFamily: 'Space Grotesk',
+            fontSize: '14px',
+            color: this.colors.subtitle
+        }).setInteractive({ cursor: 'pointer' });
+        this.musicToggleButton.setAlpha(0.75);
+        this.musicToggleButton.on('pointerover', () => this.musicToggleButton.setAlpha(1));
+        this.musicToggleButton.on('pointerout', () => this.musicToggleButton.setAlpha(0.75));
         this.musicToggleButton.on('pointerdown', () => {
             this.musicEnabled = !this.musicEnabled;
             localStorage.setItem('musicEnabled', this.musicEnabled);
-            this.musicToggleButton.setText(this.musicEnabled ? '🔊' : '🔇');
+            this.musicToggleButton.setText(this.musicEnabled ? 'SOUND: ON' : 'SOUND: OFF');
             if (this.musicEnabled) {
                 this.backgroundMusic.play();
             } else {
@@ -199,94 +101,145 @@ export class StartScene extends Phaser.Scene {
             }
         });
 
-        // Handle resize
+        this.logo = this.add.image(width - 40, 40, 'logo');
+        this.logo.setOrigin(1, 0);
+        this.logo.setScale(Math.min(width * 0.00025, 0.3));
+        this.logo.setAlpha(0.55);
+        this.logo.setTint(this.colors.accentHex);
+
         this.scale.on('resize', this.resize, this);
         this.resize(this.scale.gameSize);
     }
 
-    drawRoundedButton(graphic, x, y, width, height, radius, isHovered = false) {
-        graphic.clear();
-        if (isHovered) {
-            graphic.fillStyle(0x3a3a3a, 0.9);
-            graphic.lineStyle(2, 0xffffff, 1);
+    createMenuButton({ label, yRatio, target }) {
+        const buttonWidth = this.cameras.main.width * 0.28;
+        const buttonHeight = this.cameras.main.height * 0.065;
+
+        const outline = this.add.rectangle(0, 0, buttonWidth, buttonHeight, 0x000000, 0);
+        outline.setStrokeStyle(1, this.colors.accentHex, 0.5);
+
+        const text = this.add.text(0, 0, label, {
+            fontFamily: 'Space Grotesk',
+            fontSize: `${Math.min(this.cameras.main.width * 0.018, 24)}px`,
+            fontStyle: '500',
+            color: this.colors.accent,
+            align: 'center'
+        }).setOrigin(0.5);
+
+        const container = this.add.container(this.cameras.main.width / 2, this.cameras.main.height * yRatio, [outline, text]);
+        container.setSize(buttonWidth, buttonHeight);
+        container.setInteractive({ cursor: 'pointer' });
+
+        container.on('pointerover', () => this.setButtonHover(outline, text, true));
+        container.on('pointerout', () => this.setButtonHover(outline, text, false));
+        container.on('pointerdown', () => this.transitionTo(target));
+
+        this.menuButtons.push({ container, outline, text, yRatio });
+    }
+
+    setButtonHover(outline, text, isHovering) {
+        if (isHovering) {
+            outline.setStrokeStyle(1.5, this.colors.accentHex, 1);
+            text.setColor('#ffffff');
+            text.setShadow(0, 0, this.colors.cyanGlow, 12, false, true);
         } else {
-        graphic.fillStyle(0x2a2a2a, 0.9);
-        graphic.lineStyle(2, 0xeeeeee, 0.8);
+            outline.setStrokeStyle(1, this.colors.accentHex, 0.5);
+            text.setColor(this.colors.accent);
+            text.setShadow(0, 0, '#000000', 0, false, false);
         }
-        const rectX = x - width / 2;
-        const rectY = y - height / 2;
-        graphic.fillRoundedRect(rectX, rectY, width, height, radius);
-        graphic.strokeRoundedRect(rectX, rectY, width, height, radius);
+    }
+
+    refreshNoise(width, height) {
+        if (!this.noiseTexture) {
+            return;
+        }
+
+        const w = Math.max(1, Math.floor(width));
+        const h = Math.max(1, Math.floor(height));
+
+        this.noiseTexture.resize(w, h);
+        this.noiseTexture.clear();
+
+        const particleCount = Math.floor((w * h) / 2800);
+
+        for (let i = 0; i < particleCount; i += 1) {
+            const size = Phaser.Math.Between(1, 2);
+            const gray = Phaser.Math.Between(12, 35);
+            const color = Phaser.Display.Color.GetColor(gray, gray + 2, gray + 6);
+            const alpha = Phaser.Math.FloatBetween(0.04, 0.12);
+            const x = Phaser.Math.Between(0, w);
+            const y = Phaser.Math.Between(0, h);
+            this.noiseTexture.fill(color, alpha, x, y, size, size);
+        }
+    }
+
+    transitionTo(targetScene) {
+        if (this.transitioning) {
+            return;
+        }
+
+        this.transitioning = true;
+        this.cameras.main.fade(520, 0, 0, 0);
+        this.time.delayedCall(520, () => this.scene.start(targetScene));
     }
 
     resize(gameSize) {
-        // Update camera and background on resize
-        this.cameras.main.setSize(gameSize.width, gameSize.height);
-        this.starfield.setSize(gameSize.width, gameSize.height);
-        this.starfield.setScale(Math.max(gameSize.width / this.starfield.width, this.starfield.height));
+        const { width, height } = gameSize;
 
-        // Update overlay size
-        this.children.each(child => {
-            if (child.type === 'Rectangle' && child.width === this.cameras.main.width && child.height === this.cameras.main.height) {
-                child.setSize(gameSize.width, gameSize.height);
-            }
+        this.cameras.main.setSize(width, height);
+
+        if (this.backgroundRect) {
+            this.backgroundRect.setDisplaySize(width, height);
+        }
+
+        if (this.noiseTexture) {
+            this.noiseTexture.setPosition(0, 0);
+            this.refreshNoise(width, height);
+        }
+
+        if (this.horizon) {
+            this.horizon.setPosition(width / 2, height * 0.44);
+            this.horizon.setDisplaySize(width * 0.6, 1.2);
+        }
+
+        if (this.title) {
+            this.title.setPosition(width / 2, height * 0.22);
+            this.title.setFontSize(width * 0.075 > 96 ? '96px' : `${width * 0.075}px`);
+        }
+
+        if (this.subtitle) {
+            this.subtitle.setPosition(width / 2, height * 0.3);
+            this.subtitle.setFontSize(width * 0.02 > 26 ? '26px' : `${width * 0.02}px`);
+        }
+
+        const buttonWidth = width * 0.28;
+        const buttonHeight = height * 0.065;
+
+        this.menuButtons.forEach(({ container, outline, text, yRatio }) => {
+            container.setPosition(width / 2, height * yRatio);
+            container.setSize(buttonWidth, buttonHeight);
+            outline.setDisplaySize(buttonWidth, buttonHeight);
+            text.setFontSize(width * 0.018 > 24 ? '24px' : `${Math.max(width * 0.018, 14)}px`);
         });
 
-        // Reposition text and buttons
-        const centerX = gameSize.width / 2;
+        if (this.musicToggleButton) {
+            this.musicToggleButton.setPosition(40, height - 40);
+        }
 
-        this.title.setPosition(centerX, gameSize.height * 0.2);
-        this.title.setFontSize(gameSize.width * 0.06 > 80 ? '80px' : `${gameSize.width * 0.06}px`);
-
-        this.subtitle.setPosition(centerX, gameSize.height * 0.3);
-        this.subtitle.setFontSize(gameSize.width * 0.02 > 24 ? '24px' : `${gameSize.width * 0.02}px`);
-
-        // Define button dimensions and spacing based on new game size
-        const buttonWidth = gameSize.width * 0.125; // Half the previous width
-        const buttonHeight = gameSize.height * 0.05; // Half the previous height
-        const verticalSpacing = gameSize.height * 0.03;
-        const cornerRadius = buttonHeight * 0.3;
-        const startButtonY = gameSize.height * 0.5;
-
-        // Update start button
-        this.startButton.setPosition(centerX, startButtonY);
-        this.startButton.setSize(buttonWidth, buttonHeight);
-        this.startText.setPosition(centerX, startButtonY);
-        this.startText.setFontSize(gameSize.width * 0.03 > 30 ? '30px' : `${gameSize.width * 0.03}px`);
-        this.drawRoundedButton(this.startButtonBg, centerX, startButtonY, buttonWidth, buttonHeight, cornerRadius);
-
-        // Update armory button
-        const armoryButtonY = startButtonY + buttonHeight + verticalSpacing;
-        this.armoryButton.setPosition(centerX, armoryButtonY);
-        this.armoryButton.setSize(buttonWidth, buttonHeight);
-        // armoryText position is handled implicitly if it was added as a child of the button or container.
-        // Assuming text is separate and needs repositioning:
-        // this.armoryText.setPosition(centerX, armoryButtonY); 
-        // this.armoryText.setFontSize(gameSize.width * 0.03 > 30 ? '30px' : `${gameSize.width * 0.03}px`); // Re-evaluate font size
-        this.drawRoundedButton(this.armoryButtonBg, centerX, armoryButtonY, buttonWidth, buttonHeight, cornerRadius);
-
-        // Update echo button
-        const echoButtonY = armoryButtonY + buttonHeight + verticalSpacing;
-        this.echoButton.setPosition(centerX, echoButtonY);
-        this.echoButton.setSize(buttonWidth, buttonHeight);
-        // echoText position is handled implicitly or needs repositioning:
-        // this.echoText.setPosition(centerX, echoButtonY);
-        // this.echoText.setFontSize(gameSize.width * 0.03 > 30 ? '30px' : `${gameSize.width * 0.03}px`); // Re-evaluate font size
-        this.drawRoundedButton(this.echoButtonBg, centerX, echoButtonY, buttonWidth, buttonHeight, cornerRadius);
-
-        this.instructions.setPosition(centerX, echoButtonY + buttonHeight + verticalSpacing);
-        this.instructions.setFontSize(gameSize.width * 0.015 > 18 ? '18px' : `${gameSize.width * 0.015}px`);
-
-        // Reposition logo
-        this.logo.setPosition(gameSize.width - 20, 20);
-        this.logo.setScale(gameSize.width * 0.0001);
+        if (this.logo) {
+            this.logo.setPosition(width - 40, 40);
+            this.logo.setScale(Math.min(width * 0.00025, 0.3));
+        }
     }
 
-    update() {
-        // Scroll the starfield background
-        this.starfield.tilePositionX += 2;
+    update(time) {
+        if (this.horizon) {
+            const pulse = 0.12 + Math.abs(Math.sin(time * 0.0015)) * 0.08;
+            this.horizon.setAlpha(pulse);
+        }
 
-        // Update custom cursor
-        this.customCursor.update();
+        if (this.customCursor) {
+            this.customCursor.update();
+        }
     }
-} 
+}
